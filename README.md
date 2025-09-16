@@ -30,7 +30,7 @@ Design and implement a Library Management System that allows members to borrow a
 ---
 
 ## Class Design
-
+![img.png](img.png)
 ## UML Class Diagram
 
 ### 1. LibraryManagementSystem

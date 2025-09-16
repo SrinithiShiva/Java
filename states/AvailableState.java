@@ -5,7 +5,7 @@ import members.Member;
 
 /** Status Available:
  *  -> Setting status as borrowed
- *  -> adding the book to active borrows of member
+ *  -> adding the book to active borrows of member and removing from previous borrowed if it is their second borrow
  */
 public class AvailableState implements BookState{
 

@@ -5,8 +5,8 @@ import members.Member;
 import observers.BookReserveObserver;
 
 /** Borrow state: when return we calculate the fees
- * Current the rate is per book for each member type
- * then we set the state to borrowProduct if case no one is reserved else on hold
+ * Calculate the rate is per book for each member type
+ * then we set the state to available if case no one is reserved else on hold
  */
 public class BorrowState implements BookState{
     @Override

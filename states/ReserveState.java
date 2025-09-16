@@ -4,6 +4,10 @@ import books.BookCopy;
 import members.Member;
 import observers.BookReserveObserver;
 
+/** Reserve state:
+ *  Here we borrow the product
+ *  But returning or reserving a reserved book is not allowed
+ */
 public class ReserveState implements BookState{
     @Override
     public void borrowProduct(BookCopy bookCopy, final Member member) {

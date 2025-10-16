@@ -8,7 +8,7 @@ import vehicle.Vehicle;
 
 public class EntryExitPanel {
     private static HashMap<String, Ticket> ticketMap = new HashMap<>();
-    public Ticket parkVehicle(Vehicle vehicle, AllocationStrategy allocationStrategy, ParkingLot parkingLot)
+    public synchronized Ticket parkVehicle(Vehicle vehicle, AllocationStrategy allocationStrategy, ParkingLot parkingLot)
     {
         Ticket ticket = allocationStrategy.allocateSlot(vehicle,parkingLot);
         if(ticket!=null)
@@ -21,16 +21,7 @@ public class EntryExitPanel {
         }
         return ticket;
     }
-    public Ticket retrieveLostTicket(String ticketId)
-    {
-        if(!ticketMap.containsKey(ticketId))
-        {
-            System.out.println("Invalid Ticket ID");
-            return null;
-        }
-        return ticketMap.get(ticketId);
-    }
-    public void unParkVehicle(Vehicle vehicle, Ticket ticket, AllocationStrategy allocationStrategy, FeeCalculator feeCalculator)
+    public synchronized void unParkVehicle(Vehicle vehicle, Ticket ticket, AllocationStrategy allocationStrategy, FeeCalculator feeCalculator)
     {
         if(!ticketMap.containsKey(ticket.getTicketId()))
         {

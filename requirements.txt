@@ -1,0 +1,8 @@
+langchain==0.1.13
+langchain-core==0.1.52
+langchain-community==0.0.38
+langchain-openai
+beautifulsoup4
+tiktoken
+fastapi
+uvicorn

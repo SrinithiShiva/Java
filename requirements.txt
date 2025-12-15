@@ -4,3 +4,5 @@ langchain-community==0.0.38
 langchain-openai
 beautifulsoup4
 tiktoken
+fastapi
+uvicorn

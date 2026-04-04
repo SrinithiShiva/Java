@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 import com.example.TaskManagement.dto.UserRegistrationDTO;
 import com.example.TaskManagement.dto.UserLoginDTO;
@@ -19,7 +20,10 @@ import com.example.TaskManagement.entity.Users;
 import com.example.TaskManagement.service.UserService;
 
 import jakarta.validation.Valid;
-import java.util.Base64;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+
+import com.example.TaskManagement.security.JwtService;
 
 @RestController
 @RequestMapping("/users")
@@ -28,6 +32,11 @@ public class UserController {
     @Autowired
     private UserService userService;
 
+    @Autowired
+    private AuthenticationManager authenticationManager;
+
+    @Autowired
+    private JwtService jwtService;
     /**
      * Register a new user account
      * POST /users/register
@@ -37,7 +46,7 @@ public class UserController {
         try {
             Users user = userService.registerUser(registrationDTO);
             UserProfileDTO profileDTO = convertToProfileDTO(user);
-            AuthResponseDTO response = new AuthResponseDTO("User registered successfully", generateToken(user), profileDTO);
+            AuthResponseDTO response = new AuthResponseDTO("User registered successfully", jwtService.generateToken(user), profileDTO);
             return ResponseEntity.status(HttpStatus.CREATED).body(response);
         } catch (RuntimeException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(new AuthResponseDTO(e.getMessage()));
@@ -51,9 +60,11 @@ public class UserController {
     @PostMapping("/login")
     public ResponseEntity<AuthResponseDTO> loginUser(@Valid @RequestBody UserLoginDTO loginDTO) {
         try {
-            Users user = userService.loginUser(loginDTO);
+            authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(loginDTO.getEmail(), loginDTO.getPassword()));
+            Users user = userService.getUserByEmail(loginDTO.getEmail());
             UserProfileDTO profileDTO = convertToProfileDTO(user);
-            AuthResponseDTO response = new AuthResponseDTO("Login successful", generateToken(user), profileDTO);
+            AuthResponseDTO response = new AuthResponseDTO("Login successful", jwtService.generateToken(user), profileDTO);
             return ResponseEntity.ok(response);
         } catch (RuntimeException e) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(new AuthResponseDTO(e.getMessage()));
@@ -65,6 +76,7 @@ public class UserController {
      * GET /users/{userId}
      */
     @GetMapping("/{userId}")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<?> getUserProfile(@PathVariable Long userId) {
         try {
             Users user = userService.getUserProfile(userId);
@@ -80,6 +92,7 @@ public class UserController {
      * PUT /users/{userId}
      */
     @PutMapping("/{userId}")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<AuthResponseDTO> updateUserProfile(@PathVariable Long userId, @Valid @RequestBody UserProfileDTO profileDTO) {
         try {
             Users updatedUser = userService.updateUserProfile(userId, profileDTO);
@@ -95,6 +108,7 @@ public class UserController {
      * POST /users/{userId}/logout
      */
     @PostMapping("/{userId}/logout")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<AuthResponseDTO> logoutUser(@PathVariable Long userId) {
         try {
             userService.logoutUser(userId);
@@ -116,12 +130,4 @@ public class UserController {
         return dto;
     }
 
-    /**
-     * Helper method to generate a simple token (Base64 encoded)
-     * In production, use JWT token generation
-     */
-    private String generateToken(Users user) {
-        String tokenData = user.getUserId() + ":" + user.getEmail();
-        return Base64.getEncoder().encodeToString(tokenData.getBytes());
-    }
 }

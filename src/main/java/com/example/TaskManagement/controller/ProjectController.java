@@ -7,6 +7,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 import com.example.TaskManagement.dto.ProjectCreateDTO;
 import com.example.TaskManagement.dto.ProjectResponseDTO;
@@ -15,6 +16,7 @@ import com.example.TaskManagement.service.ProjectService;
 
 @RestController
 @RequestMapping("/projects")
+@PreAuthorize("isAuthenticated()")
 public class ProjectController {
 
     @Autowired

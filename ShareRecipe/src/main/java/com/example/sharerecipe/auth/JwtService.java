@@ -1,6 +1,7 @@
 package com.example.sharerecipe.auth;
 
 import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.io.Decoders;
@@ -10,11 +11,14 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.Date;
 import java.util.Set;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 @Service
 public class JwtService {
+	private static final Logger logger = LoggerFactory.getLogger(JwtService.class);
 	private final Key signingKey;
 	private final Duration accessTtl;
 
@@ -50,7 +54,8 @@ public class JwtService {
 		try {
 			getClaims(token);
 			return true;
-		} catch (Exception ignored) {
+		} catch (JwtException | IllegalArgumentException ex) {
+			logger.debug("Invalid JWT token", ex);
 			return false;
 		}
 	}

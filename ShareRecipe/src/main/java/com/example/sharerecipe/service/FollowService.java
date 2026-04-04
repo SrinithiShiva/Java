@@ -2,15 +2,20 @@ package com.example.sharerecipe.service;
 
 import com.example.sharerecipe.entity.Chef;
 import com.example.sharerecipe.entity.ChefFollow;
+import com.example.sharerecipe.exception.BadRequestException;
+import com.example.sharerecipe.exception.NotFoundException;
 import com.example.sharerecipe.repository.ChefFollowRepository;
 import com.example.sharerecipe.repository.ChefRepository;
 import java.util.List;
 import java.util.UUID;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class FollowService {
+	private static final Logger logger = LoggerFactory.getLogger(FollowService.class);
 	private final ChefFollowRepository chefFollowRepository;
 	private final ChefRepository chefRepository;
 
@@ -22,15 +27,16 @@ public class FollowService {
 	@Transactional
 	public void follow(UUID followerId, UUID followeeId) {
 		if (followerId.equals(followeeId)) {
-			throw new IllegalArgumentException("Cannot follow yourself");
+			throw new BadRequestException("Cannot follow yourself");
 		}
-		if (chefFollowRepository.findByFollowerIdAndFolloweeId(followerId, followeeId).isPresent()) {
+		if (chefFollowRepository.existsByFollowerIdAndFolloweeId(followerId, followeeId)) {
+			logger.info("Follower {} already follows {}", followerId, followeeId);
 			return;
 		}
 		Chef follower = chefRepository.findById(followerId)
-				.orElseThrow(() -> new IllegalArgumentException("Follower not found"));
+				.orElseThrow(() -> new NotFoundException("Follower not found for id " + followerId));
 		Chef followee = chefRepository.findById(followeeId)
-				.orElseThrow(() -> new IllegalArgumentException("Followee not found"));
+				.orElseThrow(() -> new NotFoundException("Followee not found for id " + followeeId));
 		ChefFollow follow = new ChefFollow();
 		follow.setFollower(follower);
 		follow.setFollowee(followee);
@@ -40,7 +46,10 @@ public class FollowService {
 	@Transactional
 	public void unfollow(UUID followerId, UUID followeeId) {
 		chefFollowRepository.findByFollowerIdAndFolloweeId(followerId, followeeId)
-				.ifPresent(chefFollowRepository::delete);
+				.ifPresentOrElse(
+						chefFollowRepository::delete,
+						() -> logger.info("Follower {} is not following {}", followerId, followeeId)
+				);
 	}
 
 	@Transactional(readOnly = true)

@@ -9,6 +9,7 @@ import com.example.sharerecipe.dto.RecipeUpdateRequest;
 import com.example.sharerecipe.entity.Chef;
 import com.example.sharerecipe.repository.ChefRepository;
 import com.example.sharerecipe.service.FollowService;
+import com.example.sharerecipe.exception.NotFoundException;
 import com.example.sharerecipe.service.RecipeService;
 import jakarta.validation.Valid;
 import java.time.Instant;
@@ -109,7 +110,7 @@ public class RecipeController {
 	public ResponseEntity<Void> deleteRecipe(@PathVariable("id") UUID id) {
 		CustomUserDetails current = SecurityUtils.currentUser();
 		Chef chef = chefRepository.findById(current.getId())
-				.orElseThrow(() -> new IllegalArgumentException("Chef not found"));
+				.orElseThrow(() -> new NotFoundException("Chef not found"));
 		recipeService.deleteRecipe(id, chef, isAdmin(current));
 		return ResponseEntity.noContent().build();
 	}
@@ -128,7 +129,7 @@ public class RecipeController {
 	private Chef currentChef() {
 		CustomUserDetails current = SecurityUtils.currentUser();
 		return chefRepository.findById(current.getId())
-				.orElseThrow(() -> new IllegalArgumentException("Chef not found"));
+				.orElseThrow(() -> new NotFoundException("Chef not found"));
 	}
 
 	private boolean isAdmin(CustomUserDetails current) {

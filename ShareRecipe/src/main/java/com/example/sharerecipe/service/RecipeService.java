@@ -12,9 +12,13 @@ import com.example.sharerecipe.entity.QueueStatus;
 import com.example.sharerecipe.entity.Recipe;
 import com.example.sharerecipe.entity.RecipeImage;
 import com.example.sharerecipe.entity.RecipeStatus;
+import com.example.sharerecipe.exception.BadRequestException;
+import com.example.sharerecipe.exception.ForbiddenException;
+import com.example.sharerecipe.exception.NotFoundException;
 import com.example.sharerecipe.repository.PublishQueueRepository;
 import com.example.sharerecipe.repository.RecipeRepository;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.beans.factory.annotation.Value;
@@ -46,6 +50,9 @@ public class RecipeService {
 
 	@Transactional
 	public RecipeResponse createRecipe(Chef chef, RecipeCreateRequest request, List<MultipartFile> images) {
+		if (chef == null) {
+			throw new BadRequestException("Chef is required");
+		}
 		Recipe recipe = new Recipe();
 		recipe.setAuthor(chef);
 		applyRecipeData(recipe, request.getTitle(), request.getSummary(), request.getIngredients(),
@@ -79,11 +86,12 @@ public class RecipeService {
 	public RecipeResponse addImages(UUID recipeId, Chef chef, List<MultipartFile> images, boolean admin) {
 		Recipe recipe = requireRecipe(recipeId);
 		authorizeOwner(chef, recipe, admin);
-		if (images != null) {
-			for (MultipartFile file : images) {
-				RecipeImage image = imageService.storeImage(recipe, file);
-				recipe.getImages().add(image);
-			}
+		if (images == null || images.isEmpty()) {
+			throw new BadRequestException("Images are required");
+		}
+		for (MultipartFile file : images) {
+			RecipeImage image = imageService.storeImage(recipe, file);
+			recipe.getImages().add(image);
 		}
 		return toResponse(recipeRepository.save(recipe));
 	}
@@ -101,9 +109,7 @@ public class RecipeService {
 	@Transactional
 	public void deleteRecipe(UUID recipeId, Chef chef, boolean admin) {
 		Recipe recipe = requireRecipe(recipeId);
-		if (!admin) {
-			authorizeOwner(chef, recipe, admin);
-		}
+		authorizeOwner(chef, recipe, admin);
 		recipeRepository.delete(recipe);
 	}
 
@@ -115,7 +121,7 @@ public class RecipeService {
 			Integer page,
 			Integer pageSize) {
 		Pageable pageable = pageRequest(page, pageSize);
-		Specification<Recipe> spec = Specification.where(com.example.sharerecipe.service.RecipeSpecifications.publishedOnly())
+		Specification<Recipe> spec = Specification.where(RecipeSpecifications.publishedOnly())
 				.and(RecipeSpecifications.keyword(keyword))
 				.and(RecipeSpecifications.publishedFrom(publishedFrom))
 				.and(RecipeSpecifications.publishedTo(publishedTo))
@@ -148,9 +154,9 @@ public class RecipeService {
 		List<String> safeIngredients = ingredients == null ? List.of() : ingredients;
 		List<String> safeSteps = steps == null ? List.of() : steps;
 		List<String> safeLabels = labels == null ? List.of() : labels;
-		recipe.setIngredients(new java.util.ArrayList<>(safeIngredients));
-		recipe.setSteps(new java.util.ArrayList<>(safeSteps));
-		recipe.setLabels(new java.util.ArrayList<>(safeLabels));
+		recipe.setIngredients(new ArrayList<>(safeIngredients));
+		recipe.setSteps(new ArrayList<>(safeSteps));
+		recipe.setLabels(new ArrayList<>(safeLabels));
 		recipe.setIngredientsText(String.join(" ", safeIngredients));
 		recipe.setStepsText(String.join(" ", safeSteps));
 	}
@@ -164,12 +170,12 @@ public class RecipeService {
 
 	private Recipe requireRecipe(UUID recipeId) {
 		return recipeRepository.findById(recipeId)
-				.orElseThrow(() -> new IllegalArgumentException("Recipe not found"));
+				.orElseThrow(() -> new NotFoundException("Recipe not found"));
 	}
 
 	private void authorizeOwner(Chef chef, Recipe recipe, boolean admin) {
 		if (!admin && !recipe.getAuthor().getId().equals(chef.getId())) {
-			throw new IllegalArgumentException("Forbidden");
+			throw new ForbiddenException("Forbidden");
 		}
 	}
 

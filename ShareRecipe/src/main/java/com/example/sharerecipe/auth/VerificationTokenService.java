@@ -6,7 +6,6 @@ import com.example.sharerecipe.repository.VerificationTokenRepository;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Optional;
-import java.util.UUID;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -24,7 +23,7 @@ public class VerificationTokenService {
 	public VerificationToken createToken(Chef chef) {
 		VerificationToken token = new VerificationToken();
 		token.setChef(chef);
-		token.setToken(UUID.randomUUID().toString());
+		token.setToken(TokenGenerator.generateToken());
 		token.setExpiresAt(Instant.now().plus(verificationTtl));
 		return verificationTokenRepository.save(token);
 	}

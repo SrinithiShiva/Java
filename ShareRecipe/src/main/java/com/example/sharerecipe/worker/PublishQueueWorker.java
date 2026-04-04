@@ -4,6 +4,8 @@ import com.example.sharerecipe.entity.PublishQueueItem;
 import com.example.sharerecipe.entity.QueueStatus;
 import com.example.sharerecipe.entity.Recipe;
 import com.example.sharerecipe.entity.RecipeStatus;
+import com.example.sharerecipe.config.AppProfiles;
+import com.example.sharerecipe.exception.NotFoundException;
 import com.example.sharerecipe.repository.PublishQueueRepository;
 import com.example.sharerecipe.repository.RecipeRepository;
 import java.time.Instant;
@@ -12,10 +14,13 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.context.annotation.Profile;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @Component
-@Profile("worker")
+@Profile(AppProfiles.WORKER)
 public class PublishQueueWorker {
+	private static final Logger logger = LoggerFactory.getLogger(PublishQueueWorker.class);
 	private final PublishQueueRepository publishQueueRepository;
 	private final RecipeRepository recipeRepository;
 
@@ -33,7 +38,7 @@ public class PublishQueueWorker {
 				item.setStatus(QueueStatus.PROCESSING);
 				publishQueueRepository.save(item);
 				Recipe recipe = recipeRepository.findById(item.getRecipeId())
-						.orElseThrow(() -> new IllegalArgumentException("Recipe missing"));
+						.orElseThrow(() -> new NotFoundException("Recipe missing"));
 				if (recipe.getStatus() != RecipeStatus.PUBLISHED) {
 					recipe.setStatus(RecipeStatus.PUBLISHED);
 					recipe.setPublishedAt(Instant.now());
@@ -44,6 +49,9 @@ public class PublishQueueWorker {
 			} catch (Exception ex) {
 				item.setStatus(QueueStatus.FAILED);
 				item.setError(ex.getMessage());
+				logger.error("Failed to publish recipe for queue item {}", item.getId(), ex);
+			} finally {
+				publishQueueRepository.save(item);
 			}
 		}
 	}

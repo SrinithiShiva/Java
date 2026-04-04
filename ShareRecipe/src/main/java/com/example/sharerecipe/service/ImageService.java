@@ -2,6 +2,7 @@ package com.example.sharerecipe.service;
 
 import com.example.sharerecipe.entity.Recipe;
 import com.example.sharerecipe.entity.RecipeImage;
+import com.example.sharerecipe.exception.BadRequestException;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.io.InputStream;
@@ -12,12 +13,15 @@ import java.util.Locale;
 import java.util.UUID;
 import javax.imageio.ImageIO;
 import net.coobird.thumbnailator.Thumbnails;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 @Service
 public class ImageService {
+	private static final Logger logger = LoggerFactory.getLogger(ImageService.class);
 	private final Path uploadDir;
 	private final int maxWidth;
 	private final int thumbWidth;
@@ -34,7 +38,7 @@ public class ImageService {
 		try (InputStream input = file.getInputStream()) {
 			BufferedImage original = ImageIO.read(input);
 			if (original == null) {
-				throw new IllegalArgumentException("Unsupported image");
+				throw new BadRequestException("Unsupported image: " + file.getOriginalFilename());
 			}
 
 			String extension = getExtension(file.getOriginalFilename());
@@ -45,25 +49,28 @@ public class ImageService {
 			Path originalPath = recipeDir.resolve(baseName + "." + extension);
 			Path thumbPath = recipeDir.resolve(baseName + "_thumb." + extension);
 
-			Thumbnails.of(original)
+			BufferedImage resized = Thumbnails.of(original)
 					.size(maxWidth, maxWidth)
 					.keepAspectRatio(true)
-					.toFile(originalPath.toFile());
+					.asBufferedImage();
+			ImageIO.write(resized, extension, originalPath.toFile());
 
-			Thumbnails.of(original)
+			BufferedImage thumb = Thumbnails.of(original)
 					.size(thumbWidth, thumbWidth)
 					.keepAspectRatio(true)
-					.toFile(thumbPath.toFile());
+					.asBufferedImage();
+			ImageIO.write(thumb, extension, thumbPath.toFile());
 
 			RecipeImage image = new RecipeImage();
 			image.setRecipe(recipe);
 			image.setPath(relativePath(originalPath));
 			image.setThumbnailPath(relativePath(thumbPath));
-			image.setWidth(original.getWidth());
-			image.setHeight(original.getHeight());
+			image.setWidth(resized.getWidth());
+			image.setHeight(resized.getHeight());
 			return image;
 		} catch (IOException ex) {
-			throw new IllegalArgumentException("Image upload failed");
+			logger.error("Image upload failed for recipe {}", recipe.getId(), ex);
+			throw new BadRequestException("Image upload failed");
 		}
 	}
 

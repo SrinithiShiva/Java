@@ -7,8 +7,11 @@ import com.example.sharerecipe.dto.SignupRequest;
 import com.example.sharerecipe.entity.Chef;
 import com.example.sharerecipe.entity.RefreshToken;
 import com.example.sharerecipe.entity.Role;
+import com.example.sharerecipe.exception.BadRequestException;
+import com.example.sharerecipe.exception.ConflictException;
+import com.example.sharerecipe.exception.NotFoundException;
+import com.example.sharerecipe.exception.UnauthorizedException;
 import com.example.sharerecipe.repository.ChefRepository;
-import java.time.Instant;
 import java.util.Set;
 import java.util.stream.Collectors;
 import org.springframework.beans.factory.annotation.Value;
@@ -51,10 +54,10 @@ public class AuthService {
 	@Transactional
 	public AuthResponse signup(SignupRequest request) {
 		if (chefRepository.existsByEmail(request.getEmail())) {
-			throw new IllegalArgumentException("Email already registered");
+			throw new ConflictException("Email already registered");
 		}
 		if (chefRepository.existsByHandle(request.getHandle())) {
-			throw new IllegalArgumentException("Handle already taken");
+			throw new ConflictException("Handle already taken");
 		}
 
 		Chef chef = new Chef();
@@ -84,16 +87,16 @@ public class AuthService {
 				new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword()));
 		CustomUserDetails principal = (CustomUserDetails) authentication.getPrincipal();
 		Chef chef = chefRepository.findById(principal.getId())
-				.orElseThrow(() -> new IllegalArgumentException("Chef not found"));
+				.orElseThrow(() -> new NotFoundException("Chef not found"));
 		return buildAuthResponse(chef, null);
 	}
 
 	public AuthResponse refresh(RefreshRequest request) {
 		if (!refreshEnabled) {
-			throw new IllegalArgumentException("Refresh tokens disabled");
+			throw new BadRequestException("Refresh tokens disabled");
 		}
 		RefreshToken refreshToken = refreshTokenService.findValidToken(request.getRefreshToken())
-				.orElseThrow(() -> new IllegalArgumentException("Refresh token invalid"));
+				.orElseThrow(() -> new UnauthorizedException("Refresh token invalid"));
 		Chef chef = refreshToken.getChef();
 		refreshTokenService.revoke(refreshToken);
 		return buildAuthResponse(chef, null);
@@ -102,11 +105,13 @@ public class AuthService {
 	@Transactional
 	public void verifyEmail(String token) {
 		var verificationToken = verificationTokenService.findValidToken(token)
-				.orElseThrow(() -> new IllegalArgumentException("Verification token invalid"));
+				.orElseThrow(() -> new BadRequestException("Verification token invalid"));
 		Chef chef = verificationToken.getChef();
-		chef.setEnabled(true);
+		if (!chef.isEnabled()) {
+			chef.setEnabled(true);
+			chefRepository.save(chef);
+		}
 		verificationTokenService.markUsed(verificationToken);
-		chefRepository.save(chef);
 	}
 
 	private AuthResponse buildAuthResponse(Chef chef, String verificationToken) {

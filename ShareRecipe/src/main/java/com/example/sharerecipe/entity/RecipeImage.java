@@ -73,6 +73,9 @@ public class RecipeImage {
 	}
 
 	public void setWidth(int width) {
+		if (width < 0) {
+			throw new IllegalArgumentException("Width must be non-negative");
+		}
 		this.width = width;
 	}
 
@@ -81,6 +84,9 @@ public class RecipeImage {
 	}
 
 	public void setHeight(int height) {
+		if (height < 0) {
+			throw new IllegalArgumentException("Height must be non-negative");
+		}
 		this.height = height;
 	}
 }

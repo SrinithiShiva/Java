@@ -119,7 +119,7 @@ public class DockerExecutionService {
     private String getDockerImage(Language language) {
         switch (language) {
             case PYTHON: return "python:3.11-alpine";
-            case JAVA: return "openjdk:17-alpine";
+            case JAVA: return "eclipse-temurin:17-jdk";  // No alpine suffix - supports ARM64
             case JAVASCRIPT: return "node:20-alpine";
             case C: return "gcc:latest";
             default: throw new IllegalArgumentException("Unsupported language: " + language);
@@ -184,12 +184,37 @@ public class DockerExecutionService {
 
     private String getContainerLogs(String containerId) {
         try {
-            return dockerClient.logContainerCmd(containerId)
+            // Use a StringBuilder to collect logs
+            StringBuilder outputBuilder = new StringBuilder();
+            StringBuilder errorBuilder = new StringBuilder();
+
+            dockerClient.logContainerCmd(containerId)
                     .withStdOut(true)
                     .withStdErr(true)
-                    .exec(new com.github.dockerjava.core.command.LogContainerResultCallback())
-                    .awaitCompletion()
-                    .toString();
+                    .withFollowStream(true)
+                    .withTailAll()
+                    .exec(new com.github.dockerjava.core.command.LogContainerResultCallback() {
+                        @Override
+                        public void onNext(com.github.dockerjava.api.model.Frame frame) {
+                            if (frame != null) {
+                                String log = new String(frame.getPayload()).trim();
+                                if (frame.getStreamType() == com.github.dockerjava.api.model.StreamType.STDOUT) {
+                                    outputBuilder.append(log).append("\n");
+                                } else if (frame.getStreamType() == com.github.dockerjava.api.model.StreamType.STDERR) {
+                                    errorBuilder.append(log).append("\n");
+                                }
+                            }
+                        }
+                    })
+                    .awaitCompletion();
+
+            // Combine stdout and stderr (stderr usually contains compilation errors)
+            String output = outputBuilder.toString();
+            String errors = errorBuilder.toString();
+
+            // Return combined output, prioritizing stdout
+            return output.isEmpty() ? errors : output;
+
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             return "";

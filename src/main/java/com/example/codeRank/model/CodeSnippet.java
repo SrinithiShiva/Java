@@ -46,6 +46,9 @@ public class CodeSnippet {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
+    @OneToMany(mappedBy = "snippet", cascade = CascadeType.ALL, orphanRemoval = true)
+    private java.util.List<Execution> executions;
+
     @PrePersist
     protected void onCreate() {
         createdAt = LocalDateTime.now();
